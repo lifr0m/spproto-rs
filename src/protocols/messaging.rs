@@ -62,11 +62,10 @@ impl MessagingProtocol {
         let mut ciphertext = vec![0; length];
         self.stream.read_exact(&mut ciphertext).await?;
 
-        let mut plaintext = ciphertext;
-        let length = self.opening_key.open_in_place(Aad::empty(), &mut plaintext)
+        let mut in_out = ciphertext;
+        let plaintext = self.opening_key.open_in_place(Aad::empty(), &mut in_out)
             .map_err(|_| TransmitError::InvalidCiphertext)?
-            .len();
-        plaintext.truncate(length);
+            .to_vec();
 
         Ok(plaintext)
     }
