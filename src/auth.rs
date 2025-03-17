@@ -1,8 +1,7 @@
 use crate::protocols::{messaging, signed};
 use aws_lc_rs::error::KeyRejected;
 use aws_lc_rs::kdf::{get_sskdf_digest_algorithm, sskdf_digest, SskdfDigestAlgorithmId};
-use aws_lc_rs::rand::SystemRandom;
-use aws_lc_rs::{agreement, signature};
+use aws_lc_rs::{agreement, rand, signature};
 use thiserror::Error;
 use tokio::net::TcpStream;
 
@@ -49,7 +48,7 @@ async fn auth_impl(
         stream, key_pair, peer_public_key,
     );
 
-    let rng = SystemRandom::new();
+    let rng = rand::SystemRandom::new();
     let dh_private_key = agreement::EphemeralPrivateKey::generate(
         &agreement::X25519, &rng,
     ).map_err(|_| AuthError::DhPrivateKeyGenerationFailed)?;

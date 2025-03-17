@@ -16,6 +16,10 @@ Intended to work as 5th OSI layer usually on top of TCP/IP.
 3. Auth key is derived from shared key using SSKDF.
 4. Messaging using auth key with ChaCha20-Poly1305.
 
+### TODO
+
+1. Key rotation
+
 ## Preparation before using
 
 1. Generate private key, give your public key to friend.
