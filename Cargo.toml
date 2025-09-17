@@ -1,12 +1,8 @@
 [package]
 name = "spproto"
-version = "0.1.1"
 edition = "2024"
-description = "Secure Peer Protocol"
-license = "MIT"
-repository = "https://github.com/lifr0m/spproto-rs"
 
 [dependencies]
-tokio = { version = "1", features = ["full"] }
-aws-lc-rs = "1"
 thiserror = "2"
+tokio = { version = "1", features = ["io-util", "net"] }
+aws-lc-rs = "1"
