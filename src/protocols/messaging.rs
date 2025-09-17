@@ -23,7 +23,7 @@ pub struct MessagingProtocol {
 }
 
 impl MessagingProtocol {
-    pub(crate) fn new(stream: TcpStream, b_key: Vec<u8>) -> Self {
+    pub fn new(stream: TcpStream, b_key: Vec<u8>) -> Self {
         let sealing_key = SealingKey::new(
             Self::new_unbound_key(&b_key),
             Self::new_nonce_seq(),

@@ -12,14 +12,14 @@ pub enum TransmitError {
     InvalidSignature,
 }
 
-pub(crate) struct SignedProtocol {
+pub struct SignedProtocol {
     stream: TcpStream,
     key_pair: Ed25519KeyPair,
     peer_public_key: UnparsedPublicKey<Vec<u8>>,
 }
 
 impl SignedProtocol {
-    pub(crate) fn new(
+    pub fn new(
         stream: TcpStream,
         key_pair: Ed25519KeyPair,
         peer_public_key: UnparsedPublicKey<Vec<u8>>,
@@ -27,11 +27,11 @@ impl SignedProtocol {
         Self { stream, key_pair, peer_public_key }
     }
     
-    pub(crate) fn destruct(self) -> TcpStream {
+    pub fn destruct(self) -> TcpStream {
         self.stream
     }
     
-    pub(crate) async fn send(&mut self, message: &[u8]) -> Result<(), TransmitError> {
+    pub async fn send(&mut self, message: &[u8]) -> Result<(), TransmitError> {
         let signature = self.key_pair.sign(message);
         self.stream.write_u64_le(signature.as_ref().len() as u64).await?;
         self.stream.write_all(signature.as_ref()).await?;
@@ -43,7 +43,7 @@ impl SignedProtocol {
         Ok(())
     }
 
-    pub(crate) async fn receive(&mut self) -> Result<Vec<u8>, TransmitError> {
+    pub async fn receive(&mut self) -> Result<Vec<u8>, TransmitError> {
         let length = self.stream.read_u64_le().await? as usize;
         let mut signature = vec![0; length];
         self.stream.read_exact(&mut signature).await?;
