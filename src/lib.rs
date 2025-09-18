@@ -1,6 +1,6 @@
 mod protocols;
-mod key_pair;
+mod keys;
 mod auth;
 
 pub use auth::auth;
-pub use key_pair::{generate_key_pair, get_public_key};
+pub use keys::{generate_signing_key, get_verifying_key};

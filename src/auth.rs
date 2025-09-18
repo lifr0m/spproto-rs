@@ -1,81 +1,60 @@
 use crate::protocols::{messaging, signed};
-use aws_lc_rs::error::KeyRejected;
-use aws_lc_rs::kdf::{get_sskdf_digest_algorithm, sskdf_digest, SskdfDigestAlgorithmId};
-use aws_lc_rs::{agreement, rand, signature};
+use hkdf::Hkdf;
+use sha2::Sha256;
 use thiserror::Error;
 use tokio::net::TcpStream;
+use x25519_dalek::{EphemeralSecret, PublicKey};
 
 #[derive(Error, Debug)]
-pub enum AuthError {
-    #[error("error parsing key pair: {0}")]
-    InvalidKeyPair(#[from] KeyRejected),
+pub enum Error {
+    #[error("invalid key: {0}")]
+    InvalidKey(String),
+    
+    #[error("signed proto: {0}")]
+    SignedProto(#[from] signed::Error),
 
-    #[error("internal error generating dh private key")]
-    DhPrivateKeyGenerationFailed,
+    #[error("kdf: {0}")]
+    Kdf(#[from] hkdf::InvalidLength),
 
-    #[error("internal error computing dh public key")]
-    DhPublicKeyComputationFailed,
-
-    #[error("signed transmit error: {0}")]
-    SignedTransmitFailed(#[from] signed::TransmitError),
-
-    #[error("dh agreement failed")]
-    DhAgreementFailed,
-
-    #[error("auth key derivation failed")]
-    AuthKeyDerivationFailed,
+    #[error("invalid response: {0}")]
+    InvalidResponse(String),
 }
 
 pub async fn auth(
     stream: TcpStream,
-    b_key_pair: Vec<u8>,
-    b_peer_public_key: Vec<u8>,
-) -> Result<messaging::MessagingProtocol, AuthError> {
-    let key_pair = signature::Ed25519KeyPair::from_pkcs8(&b_key_pair)?;
-    let peer_public_key = signature::UnparsedPublicKey::new(
-        &signature::ED25519, b_peer_public_key,
-    );
-
-    auth_impl(stream, key_pair, peer_public_key).await
+    b_signing_key: &[u8],
+    b_verifying_key: &[u8],
+) -> Result<messaging::Protocol, Error> {
+    let b_signing_key: [u8; 32] = b_signing_key.try_into()
+        .map_err(|_| Error::InvalidKey("signing key has invalid length".to_owned()))?;
+    let b_verifying_key: [u8; 32] = b_verifying_key.try_into()
+        .map_err(|_| Error::InvalidKey("verifying key has invalid length".to_owned()))?;
+    
+    auth_impl(stream, b_signing_key, b_verifying_key).await
 }
 
 async fn auth_impl(
     stream: TcpStream,
-    key_pair: signature::Ed25519KeyPair,
-    peer_public_key: signature::UnparsedPublicKey<Vec<u8>>,
-) -> Result<messaging::MessagingProtocol, AuthError> {
-    let mut proto = signed::SignedProtocol::new(
-        stream, key_pair, peer_public_key,
-    );
+    b_signing_key: [u8; 32],
+    b_verifying_key: [u8; 32],
+) -> Result<messaging::Protocol, Error> {
+    let mut proto = signed::Protocol::new(stream, b_signing_key, b_verifying_key)?;
 
-    let rng = rand::SystemRandom::new();
-    let dh_private_key = agreement::EphemeralPrivateKey::generate(
-        &agreement::X25519, &rng,
-    ).map_err(|_| AuthError::DhPrivateKeyGenerationFailed)?;
+    let dh_secret = EphemeralSecret::random();
+    let dh_public = PublicKey::from(&dh_secret);
+    proto.send(dh_public.as_ref()).await?;
 
-    let dh_public_key = dh_private_key.compute_public_key()
-        .map_err(|_| AuthError::DhPublicKeyComputationFailed)?;
-    proto.send(dh_public_key.as_ref()).await?;
+    let b_dh_peer_public = proto.receive().await?;
+    let b_dh_peer_public: [u8; 32] = b_dh_peer_public.try_into()
+        .map_err(|_| Error::InvalidResponse("peer public has wrong size".to_owned()))?;
+    let dh_peer_public = PublicKey::from(b_dh_peer_public);
 
-    let b_dh_peer_public_key = proto.receive().await?;
-    let dh_peer_public_key = agreement::UnparsedPublicKey::new(
-        &agreement::X25519, b_dh_peer_public_key,
-    );
+    let shared_secret = dh_secret.diffie_hellman(&dh_peer_public);
 
-    let auth_key = agreement::agree_ephemeral(
-        dh_private_key,
-        &dh_peer_public_key,
-        AuthError::DhAgreementFailed,
-        |shared_key| {
-            let algorithm = get_sskdf_digest_algorithm(SskdfDigestAlgorithmId::Sha256)
-                .expect("wrong sskdf digest algorithm id");
-            let mut auth_key = vec![0; 32];
-            sskdf_digest(algorithm, shared_key, &[], &mut auth_key)
-                .map_err(|_| AuthError::AuthKeyDerivationFailed)?;
-            Ok(auth_key)
-        },
-    )?;
+    let kdf = Hkdf::<Sha256>::new(None, shared_secret.as_ref());
+    let mut auth_key = [0; 32];
+    kdf.expand(&[], &mut auth_key)?;
 
     let stream = proto.destruct();
-    Ok(messaging::MessagingProtocol::new(stream, auth_key))
+    Ok(messaging::Protocol::new(stream, auth_key))
 }

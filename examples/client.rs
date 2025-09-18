@@ -2,11 +2,11 @@ use tokio::net::TcpStream;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let key_pair = std::fs::read("key_pair_2")?;
-    let peer_public_key = std::fs::read("public_key")?;
+    let signing_key = std::fs::read("signing_key")?;
+    let verifying_key = std::fs::read("verifying_key")?;
     
     let stream = TcpStream::connect("localhost:59350").await?;
-    let mut proto = spproto::auth(stream, key_pair, peer_public_key).await?;
+    let mut proto = spproto::auth(stream, &signing_key, &verifying_key).await?;
     
     proto.send(b"hello server").await?;
     let response = proto.receive().await?;
