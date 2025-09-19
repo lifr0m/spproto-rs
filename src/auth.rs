@@ -45,5 +45,6 @@ pub fn step2(data: Step1, msg: &[u8]) -> Result<messaging::Protocol, Error> {
     let mut auth_key = [0; 32];
     kdf.expand(&[], &mut auth_key)?;
 
+    log::debug!("auth key: {}", hex::encode(auth_key));
     Ok(messaging::Protocol::new(auth_key))
 }
