@@ -8,8 +8,8 @@ pub enum Error {
     #[error("signature: {0}")]
     Signature(#[from] ed25519::Error),
 
-    #[error("protocol: {0}")]
-    Protocol(String),
+    #[error("proto: {0}")]
+    Proto(String),
 }
 
 pub struct Protocol {
@@ -32,7 +32,7 @@ impl Protocol {
 
     pub fn unpack(&self, msg: &[u8]) -> Result<Vec<u8>, Error> {
         let (signature, msg) = msg.split_at_checked(64)
-            .ok_or_else(|| Error::Protocol("msg has invalid length".to_string()))?;
+            .ok_or_else(|| Error::Proto("msg has invalid length".to_string()))?;
         let signature = Signature::try_from(signature)
             .unwrap();
         self.verifying_key.verify_strict(msg, &signature)?;

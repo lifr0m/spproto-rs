@@ -7,8 +7,8 @@ pub enum Error {
     #[error("cipher: {0}")]
     Cipher(#[from] chacha20poly1305::Error),
 
-    #[error("protocol: {0}")]
-    Protocol(String),
+    #[error("proto: {0}")]
+    Proto(String),
 }
 
 pub struct Protocol {
@@ -31,7 +31,7 @@ impl Protocol {
 
     pub fn unpack(&self, msg: &[u8]) -> Result<Vec<u8>, Error> {
         let (nonce, msg) = msg.split_at_checked(12)
-            .ok_or_else(|| Error::Protocol("msg has invalid length".to_string()))?;
+            .ok_or_else(|| Error::Proto("msg has invalid length".to_string()))?;
         let nonce = Nonce::try_from(nonce)
             .unwrap();
         Ok(self.cipher.decrypt(&nonce, msg)?)
