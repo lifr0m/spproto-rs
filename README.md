@@ -4,7 +4,7 @@
 
 Chat with friends in a truly cryptographically secure way.
 
-Intended to work as 5th OSI layer usually on top of TCP/IP.
+Intended to work as 5th OSI layer, usually on top of TCP/IP.
 
 [Python version](https://github.com/lifr0m/spproto)
 
@@ -27,17 +27,3 @@ Intended to work as 5th OSI layer usually on top of TCP/IP.
 2. Get friend's public key through reliable channel.
 
 See `examples/gen_keys.rs`.
-
-## How to use
-
-### Client
-
-Connect to your friend.
-
-See `examples/client.rs`.
-
-### Server
-
-Make your friend available to connect to you.
-
-See `examples/server.rs`.

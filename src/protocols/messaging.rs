@@ -1,55 +1,39 @@
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::{AeadCore, ChaCha20Poly1305, Key, KeyInit, Nonce};
 use thiserror::Error;
-use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("io: {0}")]
-    Io(#[from] io::Error),
+    #[error("cipher: {0}")]
+    Cipher(#[from] chacha20poly1305::Error),
 
-    #[error("aead: {0}")]
-    Aead(#[from] chacha20poly1305::Error),
+    #[error("protocol: {0}")]
+    Protocol(String),
 }
 
 pub struct Protocol {
-    stream: TcpStream,
     cipher: ChaCha20Poly1305,
 }
 
 impl Protocol {
-    pub fn new(stream: TcpStream, b_key: [u8; 32]) -> Self {
+    pub fn new(b_key: [u8; 32]) -> Self {
         let key = Key::from(b_key);
         let cipher = ChaCha20Poly1305::new(&key);
 
-        Self { stream, cipher }
+        Self { cipher }
     }
 
-    pub async fn send(&mut self, plaintext: &[u8]) -> Result<(), Error> {
+    pub fn pack(&self, msg: &[u8]) -> Result<Vec<u8>, Error> {
         let nonce = ChaCha20Poly1305::generate_nonce()
             .expect("nonce generation failed");
-        let ciphertext = self.cipher.encrypt(&nonce, plaintext)?;
-
-        self.stream.write_all(&nonce).await?;
-
-        self.stream.write_u64_le(ciphertext.len() as u64).await?;
-        self.stream.write_all(&ciphertext).await?;
-
-        self.stream.flush().await?;
-        Ok(())
+        Ok(self.cipher.encrypt(&nonce, msg)?)
     }
 
-    pub async fn receive(&mut self) -> Result<Vec<u8>, Error> {
-        let mut nonce = Nonce::default();
-        self.stream.read_exact(&mut nonce).await?;
-
-        let length = self.stream.read_u64_le().await? as usize;
-        let mut ciphertext = vec![0; length];
-        self.stream.read_exact(&mut ciphertext).await?;
-
-        let plaintext = self.cipher.decrypt(&nonce, ciphertext.as_ref())?;
-
-        Ok(plaintext)
+    pub fn unpack(&self, msg: &[u8]) -> Result<Vec<u8>, Error> {
+        let (nonce, msg) = msg.split_at_checked(12)
+            .ok_or_else(|| Error::Protocol("msg has invalid length".to_string()))?;
+        let nonce = Nonce::try_from(nonce)
+            .unwrap();
+        Ok(self.cipher.decrypt(&nonce, msg)?)
     }
 }
