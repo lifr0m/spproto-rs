@@ -7,9 +7,6 @@ use x25519_dalek::{EphemeralSecret, PublicKey};
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("invalid key: {0}")]
-    InvalidKey(String),
-    
     #[error("signed proto: {0}")]
     SignedProto(#[from] signed::Error),
 
@@ -21,19 +18,6 @@ pub enum Error {
 }
 
 pub async fn auth(
-    stream: TcpStream,
-    b_signing_key: &[u8],
-    b_verifying_key: &[u8],
-) -> Result<messaging::Protocol, Error> {
-    let b_signing_key: [u8; 32] = b_signing_key.try_into()
-        .map_err(|_| Error::InvalidKey("signing key has invalid length".to_owned()))?;
-    let b_verifying_key: [u8; 32] = b_verifying_key.try_into()
-        .map_err(|_| Error::InvalidKey("verifying key has invalid length".to_owned()))?;
-    
-    auth_impl(stream, b_signing_key, b_verifying_key).await
-}
-
-async fn auth_impl(
     stream: TcpStream,
     b_signing_key: [u8; 32],
     b_verifying_key: [u8; 32],
