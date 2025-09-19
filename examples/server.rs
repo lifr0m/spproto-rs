@@ -12,7 +12,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind("localhost:59350").await?;
     loop {
         let (stream, _) = listener.accept().await?;
-        let mut proto = spproto::auth(stream, signing_key, verifying_key).await?;
+        let mut proto = spproto::auth::auth(stream, signing_key, verifying_key).await?;
 
         proto.send(b"hello client").await?;
         let response = proto.receive().await?;
