@@ -9,7 +9,6 @@ chacha20poly1305 = "0.11.0-rc"
 ed25519 = "3.0.0-rc"
 ed25519-dalek = { version = "3.0.0-pre", features = ["rand_core"] }
 x25519-dalek = { version = "3.0.0-pre", features = ["os_rng"] }
-hkdf = "0.13.0-rc"
-sha2 = "0.11.0-rc"
+blake3 = "1"
 log = "0.4"
 hex = "0.4"
