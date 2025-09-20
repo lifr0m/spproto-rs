@@ -26,7 +26,8 @@ impl Protocol {
     pub fn pack(&self, msg: &[u8]) -> Result<Vec<u8>, Error> {
         let nonce = ChaCha20Poly1305::generate_nonce()
             .expect("nonce generation failed");
-        Ok(self.cipher.encrypt(&nonce, msg)?)
+        let msg = self.cipher.encrypt(&nonce, msg)?;
+        Ok([nonce.as_slice(), &msg].concat())
     }
 
     pub fn unpack(&self, msg: &[u8]) -> Result<Vec<u8>, Error> {
